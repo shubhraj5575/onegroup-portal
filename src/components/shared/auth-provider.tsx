@@ -68,7 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error);
-    return { success: true, otp: data.otp }; // otp only in dev
+    return { success: true };
   };
 
   const verifyOtp = async (phone: string, otp: string) => {
@@ -82,7 +82,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     localStorage.setItem("access_token", data.accessToken);
     setAccessToken(data.accessToken);
-    setUser(data.user);
+
+    // Fetch full user profile (with bookings) instead of using minimal verify response
+    await fetchUser(data.accessToken);
     return true;
   };
 

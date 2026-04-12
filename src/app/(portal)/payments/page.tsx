@@ -101,12 +101,13 @@ export default function PaymentsPage() {
   const [selectedBooking, setSelectedBooking] = useState<string>("");
 
   const bookings = user?.customer?.bookings || [];
+  const firstBookingId = bookings[0]?.id || null;
 
   useEffect(() => {
-    if (bookings.length > 0 && !selectedBooking) {
-      setSelectedBooking(bookings[0].id);
+    if (firstBookingId && !selectedBooking) {
+      setSelectedBooking(firstBookingId);
     }
-  }, [bookings, selectedBooking]);
+  }, [firstBookingId, selectedBooking]);
 
   useEffect(() => {
     if (!selectedBooking || !accessToken) return;

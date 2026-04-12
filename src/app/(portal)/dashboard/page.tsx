@@ -160,16 +160,17 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<PaymentStats | null>(null);
 
   const bookings = user?.customer?.bookings || [];
+  const firstBookingId = bookings[0]?.id || null;
   const totalAmount = bookings.reduce(
     (sum, b) => sum + (parseFloat(b.totalAmount) || 0),
     0
   );
 
   useEffect(() => {
-    if (!accessToken || bookings.length === 0) return;
+    if (!accessToken || !firstBookingId) return;
     async function fetchStats() {
       try {
-        const res = await fetch(`/api/payments?bookingId=${bookings[0].id}`, {
+        const res = await fetch(`/api/payments?bookingId=${firstBookingId}`, {
           headers: { Authorization: `Bearer ${accessToken}` },
         });
         if (res.ok) setStats(await res.json());
@@ -178,7 +179,7 @@ export default function DashboardPage() {
       }
     }
     fetchStats();
-  }, [accessToken, bookings]);
+  }, [accessToken, firstBookingId]);
 
   const totalPaid = stats ? Number(stats.totalPaid) : 0;
   const totalDue = stats ? Number(stats.totalDue) : 0;
