@@ -274,6 +274,7 @@ export default function DocumentsPage() {
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
+        onClick={() => document.getElementById("doc-drop-input")?.click()}
         className={`
           border-2 border-dashed rounded-2xl p-8 text-center transition-all duration-200 cursor-pointer
           ${
@@ -283,16 +284,27 @@ export default function DocumentsPage() {
           }
         `}
       >
+        <input
+          type="file"
+          id="doc-drop-input"
+          accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) handleFileUpload(file);
+            e.target.value = "";
+          }}
+        />
         <CloudUpload
           className={`h-10 w-10 mx-auto mb-3 transition-colors ${
             isDragOver ? "text-violet-500" : "text-gray-400"
           }`}
         />
         <p className="text-sm font-medium text-gray-700">
-          Drag and drop files here
+          {uploading ? "Uploading..." : "Drag and drop files here"}
         </p>
         <p className="text-xs text-gray-400 mt-1">
-          or click the upload button above
+          or click to browse files
         </p>
       </div>
 
