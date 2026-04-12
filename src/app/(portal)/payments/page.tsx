@@ -356,14 +356,14 @@ export default function PaymentsPage() {
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">
-                          {item.payment?.receiptUrl && (
+                          {item.payment?.id && (
                             <Button
                               variant="ghost"
                               size="sm"
                               className="h-8 gap-1.5 text-violet-600 hover:text-violet-700 hover:bg-violet-50"
                               onClick={() =>
                                 window.open(
-                                  item.payment!.receiptUrl!,
+                                  `/api/payments/receipt?paymentId=${item.payment!.id}`,
                                   "_blank"
                                 )
                               }
