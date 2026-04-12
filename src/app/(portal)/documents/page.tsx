@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,7 +14,6 @@ import {
   FileImage,
   FileSpreadsheet,
   FolderOpen,
-  CloudUpload,
   Search,
   Filter,
 } from "lucide-react";
@@ -94,9 +93,8 @@ export default function DocumentsPage() {
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState<string>("ALL");
   const [searchQuery, setSearchQuery] = useState("");
-  const [isDragOver, setIsDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const handleFileUpload = useCallback(async (file: File) => {
+  const handleFileUpload = async (file: File) => {
     if (!accessToken) return;
     setUploading(true);
     try {
@@ -124,7 +122,7 @@ export default function DocumentsPage() {
     } finally {
       setUploading(false);
     }
-  }, [accessToken]);
+  };
 
   useEffect(() => {
     if (!accessToken) return;
@@ -146,23 +144,6 @@ export default function DocumentsPage() {
     }
     fetchDocuments();
   }, [accessToken]);
-
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragOver(true);
-  }, []);
-
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragOver(false);
-  }, []);
-
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragOver(false);
-    const file = e.dataTransfer.files?.[0];
-    if (file) handleFileUpload(file);
-  }, [handleFileUpload]);
 
   // Get unique document types for filter tabs
   const docTypes = Array.from(new Set(documents.map((d) => d.type)));
@@ -256,44 +237,18 @@ export default function DocumentsPage() {
         ))}
       </div>
 
-      {/* Upload Drop Zone */}
-      <div
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-        onClick={() => document.getElementById("doc-drop-input")?.click()}
-        className={`
-          border-2 border-dashed rounded-2xl p-8 text-center transition-all duration-200 cursor-pointer
-          ${
-            isDragOver
-              ? "border-violet-400 bg-violet-50 scale-[1.01]"
-              : "border-gray-200 bg-gray-50/50 hover:border-gray-300 hover:bg-gray-50"
-          }
-        `}
-      >
-        <input
-          type="file"
-          id="doc-drop-input"
-          accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-          className="hidden"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) handleFileUpload(file);
-            e.target.value = "";
-          }}
-        />
-        <CloudUpload
-          className={`h-10 w-10 mx-auto mb-3 transition-colors ${
-            isDragOver ? "text-violet-500" : "text-gray-400"
-          }`}
-        />
-        <p className="text-sm font-medium text-gray-700">
-          {uploading ? "Uploading..." : "Drag and drop files here"}
-        </p>
-        <p className="text-xs text-gray-400 mt-1">
-          or click to browse files
-        </p>
-      </div>
+      {/* Hidden file input for upload button */}
+      <input
+        type="file"
+        id="doc-drop-input"
+        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) handleFileUpload(file);
+          e.target.value = "";
+        }}
+      />
 
       {/* Search + Filter Tabs */}
       <div className="space-y-4">
