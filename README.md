@@ -1,36 +1,82 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ONE Group - Customer Portal
 
-## Getting Started
+Post-booking CRM portal for real estate customers. Track payments, construction progress, documents, raise tickets, referrals, and more.
 
-First, run the development server:
+## Quick Start
 
 ```bash
+# Install dependencies
+npm install
+
+# Set up environment
+cp .env.example .env
+
+# Generate Prisma client + create database
+npx prisma generate
+npx prisma migrate dev
+
+# Seed demo data
+npx tsx prisma/seed.ts
+
+# Start dev server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Demo Accounts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Role | Phone | OTP |
+|------|-------|-----|
+| Customer | 9876543210 | 123456 |
+| Admin | 9999999999 | 123456 |
 
-## Learn More
+Admin Registration Code: `ONEGROUP2025`
 
-To learn more about Next.js, take a look at the following resources:
+## Tech Stack
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- **Framework:** Next.js 16 (App Router)
+- **UI:** Tailwind CSS + shadcn/ui
+- **Database:** SQLite (dev) / PostgreSQL (prod) + Prisma ORM
+- **Auth:** Phone OTP + JWT
+- **Storage:** Local filesystem (dev) / S3 (prod)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Features
 
-## Deploy on Vercel
+### Customer Portal
+- Payment schedule with progress tracking
+- Construction progress with photo timeline
+- Document vault with upload/download
+- Support ticket system with chat
+- Possession step tracker
+- Referral program with rewards
+- Loan assistance with EMI calculator
+- Community announcements, FAQs, events
+- Push notifications
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Admin Panel
+- Customer management
+- Booking import from PDF (human-in-the-loop)
+- Payment recording
+- Construction update upload
+- Document management
+- Analytics dashboard
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Project Structure
+
+```
+src/
+  app/
+    (auth)/         # Login page
+    (portal)/       # Customer portal pages
+    admin/          # Admin panel pages
+    api/            # API routes
+  components/
+    shared/         # Sidebar, auth provider
+    ui/             # shadcn/ui components
+  lib/              # Utilities, Prisma, auth, S3
+  hooks/            # React hooks
+prisma/
+  schema.prisma     # Database schema
+  seed.ts           # Demo data
+```
