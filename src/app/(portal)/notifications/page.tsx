@@ -28,28 +28,37 @@ interface Notification {
 
 const typeIcons: Record<string, React.ElementType> = {
   PAYMENT_REMINDER: CreditCard,
+  PAYMENT_OVERDUE: CreditCard,
+  PAYMENT_LATE_FEE: CreditCard,
   PAYMENT_CONFIRMATION: CreditCard,
   CONSTRUCTION_UPDATE: Building2,
   DOCUMENT_ADDED: FileText,
   TICKET_UPDATE: MessageSquare,
+  ADMIN_MESSAGE: MessageSquare,
   ANNOUNCEMENT: Megaphone,
 };
 
 const typeBorderColors: Record<string, string> = {
   PAYMENT_REMINDER: "border-l-primary",
+  PAYMENT_OVERDUE: "border-l-red-500",
+  PAYMENT_LATE_FEE: "border-l-red-500",
   PAYMENT_CONFIRMATION: "border-l-primary",
   CONSTRUCTION_UPDATE: "border-l-accent",
   DOCUMENT_ADDED: "border-l-primary",
   TICKET_UPDATE: "border-l-accent",
+  ADMIN_MESSAGE: "border-l-indigo-500",
   ANNOUNCEMENT: "border-l-primary",
 };
 
 const typeIconColors: Record<string, { bg: string; text: string }> = {
   PAYMENT_REMINDER: { bg: "bg-primary/10", text: "text-primary" },
+  PAYMENT_OVERDUE: { bg: "bg-red-100", text: "text-red-600" },
+  PAYMENT_LATE_FEE: { bg: "bg-red-100", text: "text-red-600" },
   PAYMENT_CONFIRMATION: { bg: "bg-primary/10", text: "text-primary" },
   CONSTRUCTION_UPDATE: { bg: "bg-accent/10", text: "text-accent" },
   DOCUMENT_ADDED: { bg: "bg-primary/10", text: "text-primary" },
   TICKET_UPDATE: { bg: "bg-accent/10", text: "text-accent" },
+  ADMIN_MESSAGE: { bg: "bg-indigo-100", text: "text-indigo-600" },
   ANNOUNCEMENT: { bg: "bg-primary/10", text: "text-primary" },
 };
 

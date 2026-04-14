@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -32,6 +32,8 @@ interface PaymentScheduleItem {
   label: string;
   dueDate: string;
   amount: string;
+  interestAmount?: string;
+  escalationStage?: number;
   status: string;
   payment?: {
     id: string;
@@ -320,9 +322,11 @@ export default function PaymentsPage() {
                   {data.schedule.map((item, idx) => {
                     const config =
                       statusConfig[item.status as keyof typeof statusConfig];
+                    const interest = Number(item.interestAmount || 0);
+                    const hasLateFee = interest > 0 && item.status !== "PAID";
                     return (
+                      <Fragment key={item.id}>
                       <TableRow
-                        key={item.id}
                         className={
                           idx % 2 === 0
                             ? "bg-white hover:bg-gray-50/50"
@@ -338,11 +342,23 @@ export default function PaymentsPage() {
                         <TableCell className="text-gray-500">
                           {formatDate(item.dueDate)}
                         </TableCell>
-                        <TableCell className="text-right font-semibold text-gray-800">
-                          <span className="inline-flex items-center gap-1">
-                            <IndianRupee className="h-3 w-3 text-gray-400" />
-                            {Number(item.amount).toLocaleString("en-IN")}
-                          </span>
+                        <TableCell className="text-right">
+                          {hasLateFee ? (
+                            <div className="inline-flex flex-col items-end">
+                              <span className="inline-flex items-center gap-1 font-semibold text-red-700">
+                                <IndianRupee className="h-3 w-3 text-red-500" />
+                                {(Number(item.amount) + interest).toLocaleString("en-IN")}
+                              </span>
+                              <span className="text-[10px] text-gray-400 mt-0.5 line-through">
+                                ₹{Number(item.amount).toLocaleString("en-IN")}
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 font-semibold text-gray-800">
+                              <IndianRupee className="h-3 w-3 text-gray-400" />
+                              {Number(item.amount).toLocaleString("en-IN")}
+                            </span>
+                          )}
                         </TableCell>
                         <TableCell>
                           <Badge
@@ -376,6 +392,32 @@ export default function PaymentsPage() {
                           )}
                         </TableCell>
                       </TableRow>
+                      {hasLateFee && (
+                        <TableRow
+                          className="bg-red-50/50 hover:bg-red-50"
+                        >
+                          <TableCell />
+                          <TableCell className="text-sm text-red-700 pl-6">
+                            <span className="inline-flex items-center gap-1.5">
+                              <AlertCircle className="h-3.5 w-3.5" />
+                              Late Fee
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-xs text-red-600">
+                            Applied
+                          </TableCell>
+                          <TableCell className="text-right font-semibold text-red-700">
+                            <span className="inline-flex items-center gap-1">
+                              <IndianRupee className="h-3 w-3 text-red-500" />
+                              {interest.toLocaleString("en-IN")}
+                            </span>
+                          </TableCell>
+                          <TableCell colSpan={2} className="text-xs text-red-600">
+                            Total due: ₹{(Number(item.amount) + interest).toLocaleString("en-IN")}
+                          </TableCell>
+                        </TableRow>
+                      )}
+                      </Fragment>
                     );
                   })}
                 </TableBody>

@@ -15,6 +15,11 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Cron routes authenticate via CRON_SECRET (not JWT)
+  if (pathname.startsWith("/api/cron/")) {
+    return NextResponse.next();
+  }
+
   // Check for auth token on protected API routes
   const authHeader = request.headers.get("authorization");
   const token = authHeader?.replace("Bearer ", "");

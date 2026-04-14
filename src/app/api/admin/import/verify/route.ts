@@ -8,6 +8,20 @@ const schema = z.object({
   verifiedData: z.record(z.string(), z.string()),
 });
 
+function toNum(raw: string | undefined): number | null {
+  if (!raw) return null;
+  const cleaned = raw.replace(/[₹,\s]/g, "");
+  if (cleaned === "") return null;
+  const n = Number(cleaned);
+  return Number.isFinite(n) ? n : null;
+}
+
+function requireNum(raw: string | undefined, field: string): number {
+  const n = toNum(raw);
+  if (n === null) throw new Error(`Invalid or missing number for "${field}"`);
+  return n;
+}
+
 export async function POST(request: Request) {
   const auth = await requireAdmin(request);
   if ("error" in auth) return auth.error;
@@ -15,7 +29,6 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const parsed = schema.safeParse(body);
-
     if (!parsed.success) {
       return NextResponse.json(
         { error: parsed.error.issues[0].message },
@@ -25,21 +38,26 @@ export async function POST(request: Request) {
 
     const { batchId, verifiedData } = parsed.data;
 
-    const batch = await prisma.importBatch.findUnique({
-      where: { id: batchId },
-    });
-
-    if (!batch || batch.status !== "PENDING_REVIEW") {
+    const batch = await prisma.importBatch.findUnique({ where: { id: batchId } });
+    if (!batch) {
+      return NextResponse.json({ error: "Batch not found" }, { status: 404 });
+    }
+    if (batch.status === "IMPORTED") {
       return NextResponse.json(
-        { error: "Batch not found or not pending review" },
+        { error: "Batch already imported" },
         { status: 400 }
       );
     }
 
-    // Validate required fields
-    const required = ["applicant_name", "applicant_phone", "project_name", "unit_number", "total_price"];
+    const required = [
+      "applicant_name",
+      "applicant_phone",
+      "project_name",
+      "unit_number",
+      "total_price",
+    ];
     for (const field of required) {
-      if (!verifiedData[field]) {
+      if (!verifiedData[field]?.trim()) {
         return NextResponse.json(
           { error: `Missing required field: ${field}` },
           { status: 400 }
@@ -47,23 +65,23 @@ export async function POST(request: Request) {
       }
     }
 
-    // Update batch with verified data
-    await prisma.importBatch.update({
-      where: { id: batchId },
-      data: {
-        verifiedData: JSON.stringify(verifiedData),
-        status: "VERIFIED",
-        processedBy: auth.user.userId,
-      },
-    });
+    let totalPrice: number;
+    let bookingAmount: number | null;
+    let areaSqft: number | null;
+    let basePricePSF: number | null;
+    try {
+      totalPrice = requireNum(verifiedData.total_price, "total_price");
+      bookingAmount = toNum(verifiedData.booking_amount);
+      areaSqft = toNum(verifiedData.area_sqft);
+      basePricePSF = toNum(verifiedData.base_price_psf);
+    } catch (e: any) {
+      return NextResponse.json({ error: e.message }, { status: 400 });
+    }
 
-    // Create records in a transaction
     await prisma.$transaction(async (tx) => {
-      // Find or create project
       let project = await tx.project.findFirst({
         where: { name: verifiedData.project_name },
       });
-
       if (!project) {
         project = await tx.project.create({
           data: {
@@ -75,23 +93,21 @@ export async function POST(request: Request) {
         });
       }
 
-      // Find or create unit
       let unit = await tx.unit.findFirst({
         where: {
           projectId: project.id,
           unitNumber: verifiedData.unit_number,
         },
       });
-
       if (!unit) {
         unit = await tx.unit.create({
           data: {
             projectId: project.id,
             unitNumber: verifiedData.unit_number,
             unitType: verifiedData.unit_type || "Plot",
-            areaSqFt: verifiedData.area_sqft ? parseFloat(verifiedData.area_sqft) : null,
-            basePricePSF: verifiedData.base_price_psf ? parseFloat(verifiedData.base_price_psf) : null,
-            totalPrice: parseFloat(verifiedData.total_price),
+            areaSqFt: areaSqft,
+            basePricePSF,
+            totalPrice,
             paymentPlanType:
               verifiedData.payment_plan_type === "CONSTRUCTION_LINKED"
                 ? "CONSTRUCTION_LINKED"
@@ -102,21 +118,13 @@ export async function POST(request: Request) {
         });
       }
 
-      // Create user for customer
       const phone = verifiedData.applicant_phone.replace(/\D/g, "").slice(-10);
       let user = await tx.user.findUnique({ where: { phone } });
-
       if (!user) {
-        user = await tx.user.create({
-          data: { phone, role: "CUSTOMER" },
-        });
+        user = await tx.user.create({ data: { phone, role: "CUSTOMER" } });
       }
 
-      // Create customer
-      let customer = await tx.customer.findUnique({
-        where: { userId: user.id },
-      });
-
+      let customer = await tx.customer.findUnique({ where: { userId: user.id } });
       if (!customer) {
         customer = await tx.customer.create({
           data: {
@@ -131,36 +139,32 @@ export async function POST(request: Request) {
         });
       }
 
-      // Create booking
-      const bookingRef = verifiedData.unit_number;
       const booking = await tx.booking.create({
         data: {
-          bookingRef: `${bookingRef}-${Date.now()}`,
+          bookingRef: `${verifiedData.unit_number}-${Date.now()}`,
           customerId: customer.id,
           unitId: unit.id,
           bookingDate: verifiedData.booking_date
             ? new Date(verifiedData.booking_date)
             : new Date(),
-          totalAmount: parseFloat(verifiedData.total_price),
+          totalAmount: totalPrice,
           importBatchId: batchId,
         },
       });
 
-      // Create initial payment schedule (booking amount)
-      if (verifiedData.booking_amount) {
+      if (bookingAmount !== null && bookingAmount > 0) {
         await tx.paymentSchedule.create({
           data: {
             bookingId: booking.id,
             instalmentNo: 1,
             label: "Booking Amount",
             dueDate: new Date(),
-            amount: parseFloat(verifiedData.booking_amount),
+            amount: bookingAmount,
             status: "UPCOMING",
           },
         });
       }
 
-      // Co-applicant
       if (verifiedData.co_applicant_name) {
         await tx.coApplicant.create({
           data: {
@@ -171,19 +175,22 @@ export async function POST(request: Request) {
           },
         });
       }
-    });
 
-    // Mark as imported
-    await prisma.importBatch.update({
-      where: { id: batchId },
-      data: { status: "IMPORTED" },
+      await tx.importBatch.update({
+        where: { id: batchId },
+        data: {
+          verifiedData: JSON.stringify(verifiedData),
+          status: "IMPORTED",
+          processedBy: auth.user.userId,
+        },
+      });
     });
 
     return NextResponse.json({ success: true });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Verify import error:", error);
     return NextResponse.json(
-      { error: "Import verification failed" },
+      { error: error?.message || "Import verification failed" },
       { status: 500 }
     );
   }

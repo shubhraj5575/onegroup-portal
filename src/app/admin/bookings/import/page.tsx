@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -41,6 +41,25 @@ export default function BookingImportPage() {
   const [reviewBatch, setReviewBatch] = useState<ImportBatch | null>(null);
   const [reviewData, setReviewData] = useState<Record<string, string>>({});
 
+  const fetchBatches = useCallback(async () => {
+    if (!accessToken) return;
+    try {
+      const res = await fetch("/api/admin/import/batches", {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (res.ok) {
+        const json = await res.json();
+        setBatches(json.batches);
+      }
+    } catch (err) {
+      console.error("Failed to load batches:", err);
+    }
+  }, [accessToken]);
+
+  useEffect(() => {
+    fetchBatches();
+  }, [fetchBatches]);
+
   const handleUpload = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
@@ -63,9 +82,8 @@ export default function BookingImportPage() {
         });
 
         if (res.ok) {
-          const data = await res.json();
           toast.success("PDF uploaded. Processing...");
-          setBatches((prev) => [data.batch, ...prev]);
+          await fetchBatches();
         } else {
           const err = await res.json();
           toast.error(err.error || "Upload failed");
@@ -80,9 +98,9 @@ export default function BookingImportPage() {
     [accessToken]
   );
 
-  const openReview = (batch: ImportBatch) => {
+  const openReview = (batch: ImportBatch & { verifiedData?: Record<string, string> | null }) => {
     setReviewBatch(batch);
-    setReviewData(batch.extractedData || {});
+    setReviewData(batch.verifiedData || batch.extractedData || {});
   };
 
   const handleVerify = async () => {
@@ -103,12 +121,8 @@ export default function BookingImportPage() {
 
       if (res.ok) {
         toast.success("Booking imported successfully!");
-        setBatches((prev) =>
-          prev.map((b) =>
-            b.id === reviewBatch.id ? { ...b, status: "IMPORTED" } : b
-          )
-        );
         setReviewBatch(null);
+        await fetchBatches();
       } else {
         const err = await res.json();
         toast.error(err.error || "Verification failed");
@@ -313,7 +327,8 @@ export default function BookingImportPage() {
                         {new Date(batch.createdAt).toLocaleDateString("en-IN")}
                       </TableCell>
                       <TableCell className="text-right">
-                        {batch.status === "PENDING_REVIEW" && (
+                        {(batch.status === "PENDING_REVIEW" ||
+                          batch.status === "VERIFIED") && (
                           <Button
                             variant="outline"
                             size="sm"

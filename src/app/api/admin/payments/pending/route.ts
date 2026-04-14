@@ -26,10 +26,17 @@ export async function GET(request: Request) {
       label: s.label,
       dueDate: s.dueDate.toISOString(),
       amount: s.amount.toString(),
+      interestAmount: Number(s.interestAmount ?? 0).toString(),
+      escalationStage: s.escalationStage ?? 0,
       status: s.status,
+      bookingId: s.booking.id,
       bookingRef: s.booking.bookingRef,
+      lateFeeRatePct: Number(s.booking.lateFeeRatePct ?? 2),
+      customerId: s.booking.customer.id,
       customerName: s.booking.customer.name,
+      customerPhone: s.booking.customer.phone,
       projectName: s.booking.unit.project.name,
+      unitNumber: s.booking.unit.unitNumber,
     })),
   });
 }

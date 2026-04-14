@@ -46,8 +46,12 @@ export async function GET(request: Request) {
     .filter((s) => s.status === "PAID")
     .reduce((sum, s) => sum + Number(s.amount), 0);
 
+  const totalInterest = schedule
+    .filter((s) => s.status !== "PAID")
+    .reduce((sum, s) => sum + Number(s.interestAmount ?? 0), 0);
+
   const totalAmount = Number(booking?.totalAmount || 0);
-  const totalDue = totalAmount - totalPaid;
+  const totalDue = totalAmount - totalPaid + totalInterest;
 
   const nextDue = schedule.find(
     (s) => s.status === "UPCOMING" || s.status === "OVERDUE"
@@ -65,6 +69,8 @@ export async function GET(request: Request) {
       label: s.label,
       dueDate: s.dueDate.toISOString(),
       amount: s.amount.toString(),
+      interestAmount: Number(s.interestAmount ?? 0).toString(),
+      escalationStage: s.escalationStage ?? 0,
       status: s.status,
       payment: s.payment
         ? {

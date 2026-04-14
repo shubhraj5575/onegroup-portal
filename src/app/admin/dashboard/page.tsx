@@ -15,6 +15,8 @@ import {
   Upload,
   CheckCircle,
   FileText,
+  AlertTriangle,
+  RefreshCw,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -25,6 +27,13 @@ interface DashboardStats {
   pendingImports: number;
 }
 
+interface OverdueSummary {
+  overdue15: number;
+  overdue30: number;
+  totalOverdue: number;
+  totalOverdueAmount: number;
+}
+
 export default function AdminDashboardPage() {
   const { accessToken, user } = useAuth();
   const [stats, setStats] = useState<DashboardStats>({
@@ -33,6 +42,21 @@ export default function AdminDashboardPage() {
     pendingPayments: 0,
     pendingImports: 0,
   });
+  const [overdue, setOverdue] = useState<OverdueSummary | null>(null);
+  const [running, setRunning] = useState(false);
+  const [runMessage, setRunMessage] = useState<string | null>(null);
+
+  async function fetchOverdue() {
+    if (!accessToken) return;
+    try {
+      const res = await fetch("/api/admin/overdue-summary", {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (res.ok) setOverdue(await res.json());
+    } catch (err) {
+      console.error("Failed to load overdue summary:", err);
+    }
+  }
 
   useEffect(() => {
     if (!accessToken) return;
@@ -48,7 +72,41 @@ export default function AdminDashboardPage() {
       }
     }
     fetchStats();
+    fetchOverdue();
   }, [accessToken]);
+
+  async function runEscalation() {
+    if (!accessToken || running) return;
+    setRunning(true);
+    setRunMessage(null);
+    try {
+      const res = await fetch("/api/admin/escalation/run", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      const json = await res.json();
+      if (res.ok) {
+        setRunMessage(
+          `Check complete — ${json.marked} marked overdue, ${json.warnings} warnings sent, ${json.penalties} late fees applied.`
+        );
+        await fetchOverdue();
+      } else {
+        setRunMessage(json.error || "Escalation failed");
+      }
+    } catch (err) {
+      console.error(err);
+      setRunMessage("Escalation failed");
+    } finally {
+      setRunning(false);
+    }
+  }
+
+  const formatCurrency = (val: number) =>
+    new Intl.NumberFormat("en-IN", {
+      style: "currency",
+      currency: "INR",
+      maximumFractionDigits: 0,
+    }).format(val);
 
   const today = new Date().toLocaleDateString("en-IN", {
     weekday: "long",
@@ -127,7 +185,49 @@ export default function AdminDashboardPage() {
           </h1>
           <p className="text-gray-500 mt-1">{today}</p>
         </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={runEscalation}
+          disabled={running}
+          className="gap-2"
+        >
+          <RefreshCw className={`h-4 w-4 ${running ? "animate-spin" : ""}`} />
+          {running ? "Running..." : "Run Escalation Check"}
+        </Button>
       </div>
+
+      {/* Overdue Banner */}
+      {overdue && (overdue.overdue15 > 0 || overdue.overdue30 > 0) && (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4 flex items-start gap-3">
+          <AlertTriangle className="h-5 w-5 text-red-600 mt-0.5 shrink-0" />
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-red-900">
+              {overdue.overdue15 > 0 && (
+                <span>{overdue.overdue15} payment{overdue.overdue15 !== 1 ? "s" : ""} overdue 15+ days</span>
+              )}
+              {overdue.overdue15 > 0 && overdue.overdue30 > 0 && <span> · </span>}
+              {overdue.overdue30 > 0 && (
+                <span>{overdue.overdue30} with late fee applied</span>
+              )}
+            </p>
+            <p className="text-xs text-red-700 mt-0.5">
+              Total outstanding: {formatCurrency(overdue.totalOverdueAmount)}
+            </p>
+          </div>
+          <Link href="/admin/payments">
+            <Button variant="outline" size="sm" className="border-red-300 text-red-700 hover:bg-red-100">
+              View Overdue
+            </Button>
+          </Link>
+        </div>
+      )}
+
+      {runMessage && (
+        <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm text-blue-800">
+          {runMessage}
+        </div>
+      )}
 
       {/* Stat Cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
